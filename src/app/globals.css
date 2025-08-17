@@ -1,42 +1,101 @@
+/* Variables CSS personnalisées pour l'hôtel */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --hotel-primary: #2563eb;
+  --hotel-primary-dark: #1d4ed8;
+  --hotel-secondary: #059669;
+  --hotel-secondary-dark: #047857;
+  --hotel-accent: #f59e0b;
+  --hotel-danger: #dc2626;
+  --hotel-dark: #1f2937;
+  --hotel-light: #f8fafc;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Surcharge des couleurs Bootstrap */
+.btn-hotel-primary {
+  background-color: var(--hotel-primary);
+  border-color: var(--hotel-primary);
+  color: white;
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+.btn-hotel-primary:hover {
+  background-color: var(--hotel-primary-dark);
+  border-color: var(--hotel-primary-dark);
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.bg-hotel-primary {
+  background-color: var(--hotel-primary) !important;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.text-hotel-primary {
+  color: var(--hotel-primary) !important;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.border-hotel-primary {
+  border-color: var(--hotel-primary) !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+/* Styles personnalisés pour l'application */
+.shadow-soft {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.card-hover {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Navbar personnalisée */
+.navbar-hotel {
+  background: linear-gradient(135deg, var(--hotel-primary) 0%, var(--hotel-secondary) 100%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar */
+.sidebar-hotel {
+  background-color: var(--hotel-dark);
+  min-height: 100vh;
+}
+
+.sidebar-hotel .nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-hotel .nav-link:hover,
+.sidebar-hotel .nav-link.active {
+  background-color: var(--hotel-primary);
+  color: white;
+}
+
+/* Loading spinner */
+.spinner-hotel {
+  width: 3rem;
+  height: 3rem;
+  border: 4px solid rgba(37, 99, 235, 0.1);
+  border-top: 4px solid var(--hotel-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.bg-opacity-10 {
+  --bs-bg-opacity: 0.1;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+  .sidebar-hotel {
+    min-height: auto;
   }
 }
