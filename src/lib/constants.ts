@@ -126,6 +126,14 @@ export const PERMISSIONS = {
 // Navigation basée sur les modules backend
 export const NAVIGATION = [
   {
+    id: 'staff',
+    label: 'Personnel',
+    icon: 'people-fill',
+    href: '/dashboard/staff',
+    permission: PERMISSIONS.STAFF.VIEW,
+  },
+
+  {
     id: 'dashboard',
     label: 'Dashboard',
     icon: 'speedometer2',
