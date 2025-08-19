@@ -1,18 +1,18 @@
 export const APP_CONFIG = {
   name: process.env.NEXT_PUBLIC_APP_NAME || 'Hotel Management System',
   version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api',
 };
 
 // Routes API alignées sur le backend
 export const API_ENDPOINTS = {
   // Module A - Staff Security
   STAFF_SECURITY: {
-    STAFF: '/staff-security/staff',
-    ROLES: '/staff-security/roles',
-    PERMISSIONS: '/staff-security/permissions',
-    DEPARTMENTS: '/staff-security/departments',
-    ACTION_LOGS: '/staff-security/action-logs',
+    STAFF: '/staff',
+    ROLES: '/roles',
+    PERMISSIONS: '/permissions',
+    DEPARTMENTS: '/departments',
+    ACTION_LOGS: '/action-logs',
   },
   
   // Module B - Accommodation

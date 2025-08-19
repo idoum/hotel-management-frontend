@@ -4,5 +4,10 @@ import { StaffService } from '../services/staff.service';
 import { Staff } from '../types/staff-security.types';
 
 export function useStaff() {
-  return useQuery<Staff[], Error>(['staff'], () => StaffService.getStaff().then(res => res.data));
+  return useQuery<Staff[], Error>({
+    queryKey: ['staff'],
+    queryFn: () => StaffService.getStaff().then(res => res.data),
+  });
+
+
 }

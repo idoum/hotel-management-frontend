@@ -1,16 +1,16 @@
+// src/features/staff-security/components/PermissionTable.tsx
 'use client';
 
 import React, { useState, useMemo } from 'react';
 import { Table, Button, Badge, Spinner, Alert, Form, InputGroup, Pagination } from 'react-bootstrap';
-import { useRoles, useDeleteRole } from '../hooks/useRoles';
+import { usePermissions, useDeletePermission } from '../hooks/usePermissions';
 import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal';
-import RoleForm from './RoleForm';
-import RolePermissionsModal from './RolePermissionsModal';
-import { RoleWithRelations } from '../types/staff-security.types';
+import PermissionForm from './PermissionForm';
+import { PermissionWithRoles } from '../types/staff-security.types';
 
-export default function RoleTable() {
-  const { data: roles, isLoading, error } = useRoles();
-  const deleteRole = useDeleteRole();
+export default function PermissionTable() {
+  const { data: permissions, isLoading, error } = usePermissions();
+  const deletePermission = useDeletePermission();
   
   // États pour la recherche et pagination
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,56 +20,52 @@ export default function RoleTable() {
   // États pour les modaux
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<RoleWithRelations | null>(null);
+  const [selectedPermission, setSelectedPermission] = useState<PermissionWithRoles | null>(null);
 
   // Filtrage par recherche
-  const filteredRoles = useMemo(() => {
-    if (!roles) return [];
+  const filteredPermissions = useMemo(() => {
+    if (!permissions) return [];
     
-    return roles.filter(role =>
-      role.role_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (role.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+    return permissions.filter(permission =>
+      permission.permission_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (permission.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
     );
-  }, [roles, searchTerm]);
+  }, [permissions, searchTerm]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredRoles.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredPermissions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentRoles = filteredRoles.slice(startIndex, endIndex);
+  const currentPermissions = filteredPermissions.slice(startIndex, endIndex);
 
+  // Réinitialiser la pagination lors du changement de recherche
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const handleEdit = (role: RoleWithRelations) => {
-    setSelectedRole(role);
+  const handleEdit = (permission: PermissionWithRoles) => {
+    setSelectedPermission(permission);
     setShowEditModal(true);
   };
 
-  const handleManagePermissions = (role: RoleWithRelations) => {
-    setSelectedRole(role);
-    setShowPermissionsModal(true);
-  };
-
-  const handleDelete = (role: RoleWithRelations) => {
-    if (!role.canDelete) {
-      alert(`Ce rôle ne peut pas être supprimé car il est assigné à ${role.usersCount} utilisateur(s).`);
+  const handleDelete = (permission: PermissionWithRoles) => {
+    if (!permission.canDelete) {
+      alert(`Cette permission ne peut pas être supprimée car elle est utilisée par ${permission.roles?.length || 0} rôle(s).`);
       return;
     }
-    setSelectedRole(role);
+    setSelectedPermission(permission);
     setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
-    if (selectedRole) {
+    if (selectedPermission) {
       try {
-        await deleteRole.mutateAsync(selectedRole.role_id);
+        await deletePermission.mutateAsync(selectedPermission.permission_id);
         setShowDeleteModal(false);
-        setSelectedRole(null);
+        setSelectedPermission(null);
         
-        if (currentRoles.length === 1 && currentPage > 1) {
+        // Ajuster la page si nécessaire après suppression
+        if (currentPermissions.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         }
       } catch (error: any) {
@@ -90,7 +86,7 @@ export default function RoleTable() {
     return (
       <div className="text-center p-4">
         <Spinner animation="border" />
-        <p className="mt-2">Chargement des rôles...</p>
+        <p className="mt-2">Chargement des permissions...</p>
       </div>
     );
   }
@@ -120,94 +116,85 @@ export default function RoleTable() {
           )}
         </InputGroup>
         
+        {/* Statistiques */}
         <small className="text-muted mt-1 d-block">
-          {filteredRoles.length === roles?.length ? (
-            `${roles?.length || 0} rôle(s) au total`
+          {filteredPermissions.length === permissions?.length ? (
+            `${permissions?.length || 0} permission(s) au total`
           ) : (
-            `${filteredRoles.length} rôle(s) trouvé(s) sur ${roles?.length || 0}`
+            `${filteredPermissions.length} permission(s) trouvée(s) sur ${permissions?.length || 0}`
           )}
         </small>
       </div>
 
       {/* Message si aucun résultat */}
-      {filteredRoles.length === 0 && searchTerm && (
+      {filteredPermissions.length === 0 && searchTerm && (
         <Alert variant="info">
           <i className="bi bi-info-circle me-2"></i>
-          Aucun rôle ne correspond à votre recherche "{searchTerm}".
+          Aucune permission ne correspond à votre recherche "{searchTerm}".
         </Alert>
       )}
 
       {/* Tableau */}
-      {filteredRoles.length > 0 && (
+      {filteredPermissions.length > 0 && (
         <>
           <Table striped hover responsive className="mb-3">
             <thead>
               <tr>
                 <th style={{ width: '60px' }}>#</th>
-                <th>Nom du Rôle</th>
+                <th>Nom de la Permission</th>
                 <th>Description</th>
-                <th>Permissions</th>
-                <th>Utilisateurs</th>
-                <th style={{ width: '160px' }}>Actions</th>
+                <th>Rôles liés</th>
+                <th style={{ width: '120px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentRoles.map((role, index) => (
-                <tr key={role.role_id}>
+              {currentPermissions.map((permission, index) => (
+                <tr key={permission.permission_id}>
+                  {/* Numéro de ligne global (pas juste de la page) */}
                   <td className="text-muted">
                     {startIndex + index + 1}
                   </td>
                   <td>
-                    <div className="d-flex align-items-center">
-                      <strong>{role.role_name}</strong>
-                      {!role.canDelete && (
-                        <Badge bg="warning" className="ms-2" title="Ne peut pas être supprimé">
-                          <i className="bi bi-lock-fill"></i>
-                        </Badge>
-                      )}
-                    </div>
+                    <code className="bg-light p-1 rounded">
+                      {permission.permission_name}
+                    </code>
                   </td>
                   <td>
-                    {role.description ? (
-                      <span>{role.description}</span>
+                    {permission.description ? (
+                      <span>{permission.description}</span>
                     ) : (
                       <em className="text-muted">Aucune description</em>
                     )}
                   </td>
                   <td>
-                    <Badge bg="info">
-                      {role.permissionsCount} permission(s)
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge bg={role.usersCount > 0 ? 'success' : 'secondary'}>
-                      {role.usersCount} utilisateur(s)
-                    </Badge>
+                    {permission.roles?.length ? (
+                      <div>
+                        {permission.roles.map((role) => (
+                          <Badge key={role.id} bg="primary" className="me-1 mb-1">
+                            {role.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <Badge bg="secondary">Aucun rôle</Badge>
+                    )}
                   </td>
                   <td>
                     <div className="d-flex gap-1">
                       <Button 
                         variant="outline-primary" 
                         size="sm"
-                        onClick={() => handleEdit(role)}
+                        onClick={() => handleEdit(permission)}
                         title="Modifier"
                       >
                         <i className="bi bi-pencil"></i>
                       </Button>
                       <Button 
-                        variant="outline-info" 
-                        size="sm"
-                        onClick={() => handleManagePermissions(role)}
-                        title="Gérer les permissions"
-                      >
-                        <i className="bi bi-shield-check"></i>
-                      </Button>
-                      <Button 
                         variant="outline-danger" 
                         size="sm"
-                        disabled={!role.canDelete}
-                        onClick={() => handleDelete(role)}
-                        title={role.canDelete ? 'Supprimer' : 'Suppression impossible - assigné à des utilisateurs'}
+                        disabled={!permission.canDelete}
+                        onClick={() => handleDelete(permission)}
+                        title={permission.canDelete ? 'Supprimer' : 'Suppression impossible - utilisée par des rôles'}
                       >
                         <i className="bi bi-trash"></i>
                       </Button>
@@ -222,7 +209,7 @@ export default function RoleTable() {
           {totalPages > 1 && (
             <div className="d-flex justify-content-between align-items-center">
               <div className="text-muted small">
-                Affichage de {startIndex + 1} à {Math.min(endIndex, filteredRoles.length)} sur {filteredRoles.length} résultats
+                Affichage de {startIndex + 1} à {Math.min(endIndex, filteredPermissions.length)} sur {filteredPermissions.length} résultats
               </div>
               
               <Pagination className="mb-0">
@@ -235,13 +222,16 @@ export default function RoleTable() {
                   onClick={() => handlePageChange(currentPage - 1)}
                 />
                 
+                {/* Pages visibles */}
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(page => {
+                    // Afficher les pages autour de la page courante
                     const delta = 2;
                     return page === 1 || page === totalPages || 
                            (page >= currentPage - delta && page <= currentPage + delta);
                   })
                   .map((page, index, array) => {
+                    // Ajouter des ellipses si nécessaire
                     const showEllipsisAfter = array[index + 1] && array[index + 1] - page > 1;
                     return (
                       <React.Fragment key={page}>
@@ -271,24 +261,14 @@ export default function RoleTable() {
       )}
 
       {/* Modal d'édition */}
-      <RoleForm
+      <PermissionForm
         show={showEditModal}
         onHide={() => {
           setShowEditModal(false);
-          setSelectedRole(null);
+          setSelectedPermission(null);
         }}
-        role={selectedRole}
+        permission={selectedPermission}
         mode="edit"
-      />
-
-      {/* Modal de gestion des permissions */}
-      <RolePermissionsModal
-        show={showPermissionsModal}
-        onHide={() => {
-          setShowPermissionsModal(false);
-          setSelectedRole(null);
-        }}
-        role={selectedRole}
       />
 
       {/* Modal de confirmation de suppression */}
@@ -296,9 +276,9 @@ export default function RoleTable() {
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="Supprimer le Rôle"
-        message={`Êtes-vous sûr de vouloir supprimer le rôle "${selectedRole?.role_name}" ?`}
-        isLoading={deleteRole.isPending}
+        title="Supprimer la Permission"
+        message={`Êtes-vous sûr de vouloir supprimer la permission "${selectedPermission?.permission_name}" ?`}
+        isLoading={deletePermission.isPending}
       />
     </>
   );
