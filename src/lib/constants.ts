@@ -12,8 +12,10 @@ export const API_ENDPOINTS = {
     ROLES: '/roles',
     PERMISSIONS: '/permissions',
     DEPARTMENTS: '/departments',
+    USERS: '/users',
     ACTION_LOGS: '/action-logs',
   },
+  
   
   // Module B - Accommodation
   ACCOMMODATION: {
@@ -53,16 +55,44 @@ export const API_ENDPOINTS = {
   // Auth
   AUTH: {
     LOGIN: '/auth/login',
-    REGISTER: '/auth/register',
     LOGOUT: '/auth/logout',
-    ME: '/auth/me',
-    REFRESH: '/auth/refresh',
+    PROFILE: '/auth/profile',
+    VERIFY: '/auth/verify',
+    RESET_PASSWORD: '/auth/reset-password',
   },
 } as const;
 
 // Permissions alignées backend
 export const PERMISSIONS = {
   // Staff & Security
+
+  // Users
+  USER_CREATE: 'user_create',
+  USER_READ: 'user_read',
+  USER_UPDATE: 'user_update',
+  USER_DELETE: 'user_delete',
+  
+  // Roles
+  ROLE_CREATE: 'role_create',
+  ROLE_READ: 'role_read',
+  ROLE_UPDATE: 'role_update',
+  ROLE_DELETE: 'role_delete',
+  
+  // Permissions
+  PERMISSION_MANAGE: 'permission_manage',
+  
+  // Staff
+  STAFF_CREATE: 'staff_create',
+  STAFF_READ: 'staff_read',
+  STAFF_UPDATE: 'staff_update',
+  STAFF_DELETE: 'staff_delete',
+  
+  // Departments
+  DEPARTMENT_CREATE: 'department_create',
+  DEPARTMENT_READ: 'department_read',
+  DEPARTMENT_UPDATE: 'department_update',
+  DEPARTMENT_DELETE: 'department_delete',
+
   STAFF: {
     VIEW: 'staff:view',
     CREATE: 'staff:create',

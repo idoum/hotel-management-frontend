@@ -2,60 +2,50 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Button, Badge, Spinner, Alert, Form, InputGroup, Pagination, Row, Col } from 'react-bootstrap';
-import { useStaff, useDeleteStaff, useToggleStaffStatus } from '../hooks/useStaff';
+import { useUsers, useDeleteUser } from '../hooks/useUsers';
+import { useRoles } from '../hooks/useRoles';
 import { useDepartments } from '../hooks/useDepartments';
 import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal';
-import StaffForm from './StaffForm';
-import { StaffWithRelations, StaffFilters } from '../types/staff-security.types';
+import UserForm from './UserForm';
+import UserRolesModal from './UserRolesModal';
+import PasswordChangeModal from './PasswordChangeModal';
+import { UserWithRelations, UserFilters } from '../types/staff-security.types';
 
-export default function StaffTable() {
+export default function UserTable() {
   // États pour filtres et pagination
-  const [filters, setFilters] = useState<StaffFilters>({});
+  const [filters, setFilters] = useState<UserFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   
   // Hooks
-  const { data: staff, isLoading, error } = useStaff(filters);
+  const { data: users, isLoading, error } = useUsers(filters);
+  const { data: roles } = useRoles();
   const { data: departments } = useDepartments();
-  const deleteStaff = useDeleteStaff();
-  const toggleStatus = useToggleStaffStatus();
+  const deleteUser = useDeleteUser();
   
   // États pour les modaux
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<StaffWithRelations | null>(null);
+  const [showRolesModal, setShowRolesModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithRelations | null>(null);
 
   // Filtrage et pagination
-  const filteredStaff = useMemo(() => {
-    if (!staff) return [];
-    
-    return staff.filter(employee => {
-      // Filtrage côté client pour affiner les résultats
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesName = employee.name.toLowerCase().includes(searchLower);
-        const matchesContact = employee.contact_info?.toLowerCase().includes(searchLower) ?? false;
-        const matchesDepartment = employee.department?.name.toLowerCase().includes(searchLower) ?? false;
-        
-        if (!matchesName && !matchesContact && !matchesDepartment) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-  }, [staff, filters]);
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    return users; // Le filtrage est déjà fait côté serveur
+  }, [users]);
 
-  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentStaff = filteredStaff.slice(startIndex, endIndex);
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
   React.useEffect(() => {
     setCurrentPage(1);
   }, [filters]);
 
-  const handleFilterChange = (key: keyof StaffFilters, value: any) => {
+  const handleFilterChange = (key: keyof UserFilters, value: any) => {
     setFilters(prev => ({
       ...prev,
       [key]: value === '' ? undefined : value
@@ -66,53 +56,44 @@ export default function StaffTable() {
     setFilters({});
   };
 
-  const handleEdit = (employee: StaffWithRelations) => {
-    setSelectedStaff(employee);
+  const handleEdit = (user: UserWithRelations) => {
+    setSelectedUser(user);
     setShowEditModal(true);
   };
 
-  const handleDelete = (employee: StaffWithRelations) => {
-    if (!employee.canDelete) {
-      alert('Cet employé ne peut pas être supprimé.');
+  const handleManageRoles = (user: UserWithRelations) => {
+    setSelectedUser(user);
+    setShowRolesModal(true);
+  };
+
+  const handleChangePassword = (user: UserWithRelations) => {
+    setSelectedUser(user);
+    setShowPasswordModal(true);
+  };
+
+  const handleDelete = (user: UserWithRelations) => {
+    if (!user.canDelete) {
+      alert('Cet utilisateur ne peut pas être supprimé car il a des rôles assignés.');
       return;
     }
-    setSelectedStaff(employee);
+    setSelectedUser(user);
     setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
-    if (selectedStaff) {
+    if (selectedUser) {
       try {
-        await deleteStaff.mutateAsync(selectedStaff.staff_id);
+        await deleteUser.mutateAsync(selectedUser.user_id);
         setShowDeleteModal(false);
-        setSelectedStaff(null);
+        setSelectedUser(null);
         
-        if (currentStaff.length === 1 && currentPage > 1) {
+        if (currentUsers.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         }
       } catch (error: any) {
         alert(`Erreur lors de la suppression: ${error.message}`);
       }
     }
-  };
-
-  const handleToggleStatus = async (employee: StaffWithRelations) => {
-    try {
-      await toggleStatus.mutateAsync({
-        id: employee.staff_id,
-        isActive: !employee.isActive
-      });
-    } catch (error: any) {
-      alert(`Erreur lors du changement de statut: ${error.message}`);
-    }
-  };
-
-  const formatSalary = (salary?: number) => {
-    if (!salary) return 'Non défini';
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(salary);
   };
 
   const handlePageChange = (page: number) => {
@@ -123,7 +104,7 @@ export default function StaffTable() {
     return (
       <div className="text-center p-4">
         <Spinner animation="border" />
-        <p className="mt-2">Chargement des employés...</p>
+        <p className="mt-2">Chargement des utilisateurs...</p>
       </div>
     );
   }
@@ -144,7 +125,7 @@ export default function StaffTable() {
               </InputGroup.Text>
               <Form.Control
                 type="text"
-                placeholder="Rechercher par nom, contact..."
+                placeholder="Rechercher par nom d'utilisateur ou email..."
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
@@ -152,21 +133,21 @@ export default function StaffTable() {
           </Col>
           <Col md={3}>
             <Form.Select
-              value={filters.department_id || ''}
-              onChange={(e) => handleFilterChange('department_id', e.target.value ? parseInt(e.target.value) : undefined)}
+              value={filters.role_id || ''}
+              onChange={(e) => handleFilterChange('role_id', e.target.value ? parseInt(e.target.value) : undefined)}
             >
-              <option value="">Tous les départements</option>
-              {departments?.map(dept => (
-                <option key={dept.department_id} value={dept.department_id}>
-                  {dept.name}
+              <option value="">Tous les rôles</option>
+              {roles?.map(role => (
+                <option key={role.role_id} value={role.role_id}>
+                  {role.role_name}
                 </option>
               ))}
             </Form.Select>
           </Col>
           <Col md={2}>
             <Form.Select
-              value={filters.isActive?.toString() || ''}
-              onChange={(e) => handleFilterChange('isActive', e.target.value === '' ? undefined : e.target.value === 'true')}
+              value={filters.active?.toString() || ''}
+              onChange={(e) => handleFilterChange('active', e.target.value === '' ? undefined : e.target.value === 'true')}
             >
               <option value="">Tous les statuts</option>
               <option value="true">Actifs</option>
@@ -184,110 +165,121 @@ export default function StaffTable() {
         </Row>
         
         <small className="text-muted">
-          {filteredStaff.length === staff?.length ? (
-            `${staff?.length || 0} employé(s) au total`
-          ) : (
-            `${filteredStaff.length} employé(s) trouvé(s) sur ${staff?.length || 0}`
-          )}
+          {filteredUsers.length} utilisateur(s) trouvé(s)
         </small>
       </div>
 
       {/* Message si aucun résultat */}
-      {filteredStaff.length === 0 && Object.keys(filters).length > 0 && (
+      {filteredUsers.length === 0 && Object.keys(filters).length > 0 && (
         <Alert variant="info">
           <i className="bi bi-info-circle me-2"></i>
-          Aucun employé ne correspond à vos critères de recherche.
+          Aucun utilisateur ne correspond à vos critères de recherche.
         </Alert>
       )}
 
       {/* Tableau */}
-      {filteredStaff.length > 0 && (
+      {filteredUsers.length > 0 && (
         <>
           <Table striped hover responsive className="mb-3">
             <thead>
               <tr>
                 <th style={{ width: '60px' }}>#</th>
-                <th>Nom</th>
-                <th>Âge</th>
-                <th>Contact</th>
+                <th>Utilisateur</th>
+                <th>Employé</th>
+                <th>Email</th>
+                <th>Rôles</th>
                 <th>Département</th>
-                <th>Salaire</th>
                 <th>Statut</th>
-                <th style={{ width: '140px' }}>Actions</th>
+                <th style={{ width: '180px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentStaff.map((employee, index) => (
-                <tr key={employee.staff_id}>
+              {currentUsers.map((user, index) => (
+                <tr key={user.user_id}>
                   <td className="text-muted">
                     {startIndex + index + 1}
                   </td>
                   <td>
                     <div className="d-flex align-items-center">
-                      <strong>{employee.name}</strong>
-                      {!employee.isActive && (
-                        <Badge bg="secondary" className="ms-2">
-                          Inactif
-                        </Badge>
-                      )}
+                      <div>
+                        <strong>{user.username}</strong>
+                        <div className="small text-muted">ID: {user.user_id}</div>
+                      </div>
                     </div>
                   </td>
                   <td>
-                    {employee.age ? (
-                      <span>{employee.age} ans</span>
+                    {user.staff ? (
+                      <div>
+                        <strong>{user.staff.name}</strong>
+                        <div className="small text-muted">ID: {user.staff.staff_id}</div>
+                      </div>
                     ) : (
-                      <em className="text-muted">Non renseigné</em>
+                      <em className="text-muted">Non assigné</em>
                     )}
                   </td>
                   <td>
-                    {employee.contact_info ? (
-                      <small className="text-break">{employee.contact_info}</small>
-                    ) : (
-                      <em className="text-muted">Non renseigné</em>
-                    )}
+                    <small className="text-break">{user.email}</small>
                   </td>
                   <td>
-                    {employee.department ? (
-                      <Badge bg="primary">{employee.department.name}</Badge>
+                    <div className="d-flex flex-wrap gap-1">
+                      {user.roles && user.roles.length > 0 ? (
+                        user.roles.map(role => (
+                          <Badge key={role.role_id} bg="primary" className="small">
+                            {role.role_name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge bg="secondary">Aucun rôle</Badge>
+                      )}
+                    </div>
+                    <small className="text-muted">
+                      {user.rolesCount} rôle(s)
+                    </small>
+                  </td>
+                  <td>
+                    {user.staff?.department ? (
+                      <Badge bg="info">{user.staff.department.name}</Badge>
                     ) : (
                       <Badge bg="secondary">Non assigné</Badge>
                     )}
                   </td>
                   <td>
-                    <span className="fw-medium">
-                      {formatSalary(employee.salary)}
-                    </span>
+                    <Badge bg={user.active ? 'success' : 'danger'}>
+                      {user.active ? 'Actif' : 'Inactif'}
+                    </Badge>
                   </td>
                   <td>
-                    <Button
-                      variant={employee.isActive ? 'outline-success' : 'outline-secondary'}
-                      size="sm"
-                      onClick={() => handleToggleStatus(employee)}
-                      disabled={toggleStatus.isPending}
-                    >
-                      {employee.isActive ? (
-                        <><i className="bi bi-check-circle me-1"></i>Actif</>
-                      ) : (
-                        <><i className="bi bi-x-circle me-1"></i>Inactif</>
-                      )}
-                    </Button>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-1">
+                    <div className="d-flex gap-1 flex-wrap">
                       <Button 
                         variant="outline-primary" 
                         size="sm"
-                        onClick={() => handleEdit(employee)}
+                        onClick={() => handleEdit(user)}
                         title="Modifier"
                       >
                         <i className="bi bi-pencil"></i>
                       </Button>
                       <Button 
+                        variant="outline-info" 
+                        size="sm"
+                        onClick={() => handleManageRoles(user)}
+                        title="Gérer les rôles"
+                      >
+                        <i className="bi bi-shield-check"></i>
+                      </Button>
+                      <Button 
+                        variant="outline-warning" 
+                        size="sm"
+                        onClick={() => handleChangePassword(user)}
+                        title="Changer le mot de passe"
+                      >
+                        <i className="bi bi-key"></i>
+                      </Button>
+                      <Button 
                         variant="outline-danger" 
                         size="sm"
-                        disabled={!employee.canDelete}
-                        onClick={() => handleDelete(employee)}
-                        title={employee.canDelete ? 'Supprimer' : 'Suppression impossible'}
+                        disabled={!user.canDelete}
+                        onClick={() => handleDelete(user)}
+                        title={user.canDelete ? 'Supprimer' : 'Suppression impossible - a des rôles assignés'}
                       >
                         <i className="bi bi-trash"></i>
                       </Button>
@@ -302,7 +294,7 @@ export default function StaffTable() {
           {totalPages > 1 && (
             <div className="d-flex justify-content-between align-items-center">
               <div className="text-muted small">
-                Affichage de {startIndex + 1} à {Math.min(endIndex, filteredStaff.length)} sur {filteredStaff.length} résultats
+                Affichage de {startIndex + 1} à {Math.min(endIndex, filteredUsers.length)} sur {filteredUsers.length} résultats
               </div>
               
               <Pagination className="mb-0">
@@ -351,14 +343,34 @@ export default function StaffTable() {
       )}
 
       {/* Modal d'édition */}
-      <StaffForm
+      <UserForm
         show={showEditModal}
         onHide={() => {
           setShowEditModal(false);
-          setSelectedStaff(null);
+          setSelectedUser(null);
         }}
-        staff={selectedStaff}
+        user={selectedUser}
         mode="edit"
+      />
+
+      {/* Modal gestion des rôles */}
+      <UserRolesModal
+        show={showRolesModal}
+        onHide={() => {
+          setShowRolesModal(false);
+          setSelectedUser(null);
+        }}
+        user={selectedUser}
+      />
+
+      {/* Modal changement de mot de passe */}
+      <PasswordChangeModal
+        show={showPasswordModal}
+        onHide={() => {
+          setShowPasswordModal(false);
+          setSelectedUser(null);
+        }}
+        user={selectedUser}
       />
 
       {/* Modal de confirmation de suppression */}
@@ -366,9 +378,9 @@ export default function StaffTable() {
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="Supprimer l'Employé"
-        message={`Êtes-vous sûr de vouloir supprimer l'employé "${selectedStaff?.name}" ?`}
-        isLoading={deleteStaff.isPending}
+        title="Supprimer l'Utilisateur"
+        message={`Êtes-vous sûr de vouloir supprimer l'utilisateur "${selectedUser?.username}" ?`}
+        isLoading={deleteUser.isPending}
       />
     </>
   );

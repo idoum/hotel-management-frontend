@@ -1,76 +1,96 @@
-// src/lib/api.ts
-
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import Cookies from 'js-cookie';
+import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005/api';
 
-class ApiClient {
-  private client: AxiosInstance;
+// Créer l'instance axios
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-  constructor() {
-    this.client = axios.create({
-      baseURL: API_BASE_URL,
-      timeout: 10000,
-      headers: { 'Content-Type': 'application/json' },
-    });
-    this.setupInterceptors();
-  }
-
-  private setupInterceptors() {
-    this.client.interceptors.request.use(
-      config => {
-        const token = Cookies.get('hotel_access_token');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        return config;
-      },
-      error => Promise.reject(error)
-    );
-
-    this.client.interceptors.response.use(
-      response => response,
-      async error => {
-        const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-          const refresh = Cookies.get('hotel_refresh_token');
-          if (refresh) {
-            try {
-              const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refresh });
-              Cookies.set('hotel_access_token', res.data.data.accessToken);
-              return this.client(originalRequest);
-            } catch {}
-          }
-        }
-        return Promise.reject(error);
+// Intercepteur pour ajouter le token d'authentification
+apiClient.interceptors.request.use(
+  (config) => {
+    // ✅ Protection SSR - seulement côté client
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('hotel_auth_token');
+      
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
-    );
+    }
+    
+    // Log des requêtes en développement
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    
+    return config;
+  },
+  (error) => {
+    console.error('❌ API Request Error:', error);
+    return Promise.reject(error);
   }
+);
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const res: AxiosResponse<T> = await this.client.get(url, config);
-    return res.data;
+// Intercepteur pour gérer les réponses et erreurs
+apiClient.interceptors.response.use(
+  (response) => {
+    // Log des réponses en développement
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+    }
+    
+    return response.data; // Retourner directement les données
+  },
+  (error) => {
+    console.error('❌ API Response Error:', error);
+    
+    // Gestion des erreurs spécifiques
+    if (error.response) {
+      const { status, data } = error.response;
+      
+      // Token expiré ou invalide
+      if (status === 401 && typeof window !== 'undefined') {
+        // Nettoyer l'authentification
+        localStorage.removeItem('hotel_auth_token');
+        localStorage.removeItem('hotel_auth_user');
+        
+        // Rediriger vers login si pas déjà sur la page de login
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+      
+      // Créer une erreur personnalisée avec le message du serveur
+      const errorMessage = data?.message || data?.error || `Erreur HTTP ${status}`;
+      const customError = new Error(errorMessage);
+      (customError as any).name = `APIError${status}`;
+      (customError as any).status = status;
+      (customError as any).data = data;
+      
+      return Promise.reject(customError);
+    }
+    
+    // Erreur réseau
+    if (error.code === 'NETWORK_ERROR' || !error.response) {
+      const networkError = new Error('Erreur de connexion au serveur - Vérifiez que le backend est démarré');
+      (networkError as any).name = 'NetworkError';
+      return Promise.reject(networkError);
+    }
+    
+    // Erreur timeout
+    if (error.code === 'ECONNABORTED') {
+      const timeoutError = new Error('Délai d\'attente dépassé');
+      (timeoutError as any).name = 'TimeoutError';
+      return Promise.reject(timeoutError);
+    }
+    
+    return Promise.reject(error);
   }
+);
 
-  async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const res: AxiosResponse<T> = await this.client.post(url, data, config);
-    return res.data;
-  }
-
-  async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const res: AxiosResponse<T> = await this.client.put(url, data, config);
-    return res.data;
-  }
-
-  async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-    const res: AxiosResponse<T> = await this.client.patch(url, data, config);
-    return res.data;
-  }
-
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const res: AxiosResponse<T> = await this.client.delete(url, config);
-    return res.data;
-  }
-}
-
-export const apiClient = new ApiClient();
+export default apiClient;
