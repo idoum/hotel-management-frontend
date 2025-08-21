@@ -1,4 +1,4 @@
-import React from 'react'; 
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '../services/auth.service';
@@ -25,10 +25,10 @@ export function useLogin() {
   const router = useRouter();
   
   return useMutation<LoginResponse, Error, LoginRequest>({
-    mutationFn: async (credentials) => {
-      console.log('🚀 Attempting login...');
+    mutationFn: async (credentials: LoginRequest) => {
+      console.log('🚀 useLogin: Attempting login...');
       const result = await AuthService.login(credentials);
-      console.log('✅ Login successful');
+      console.log('✅ useLogin: Login successful');
       return result;
     },
     onSuccess: (data) => {
@@ -38,11 +38,17 @@ export function useLogin() {
         isAuthenticated: true
       });
       
-      // Rediriger vers le dashboard
-      router.push('/dashboard');
+      // Vérifier s'il y a une redirection en attente
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectPath);
+      } else {
+        router.push('/dashboard');
+      }
     },
     onError: (error) => {
-      console.error('❌ Login failed:', error);
+      console.error('❌ useLogin: Login failed:', error);
     },
   });
 }
@@ -54,9 +60,9 @@ export function useLogout() {
   
   return useMutation<void, Error, void>({
     mutationFn: async () => {
-      console.log('🚀 Logging out...');
+      console.log('🚀 useLogout: Logging out...');
       await AuthService.logout();
-      console.log('✅ Logout successful');
+      console.log('✅ useLogout: Logout successful');
     },
     onSuccess: () => {
       // Effacer tous les caches
@@ -67,7 +73,7 @@ export function useLogout() {
       router.push('/login');
     },
     onError: (error) => {
-      console.error('❌ Logout error:', error);
+      console.error('❌ useLogout: Logout error:', error);
       // Même en cas d'erreur, on nettoie localement
       AuthService.clearAuth();
       queryClient.clear();
@@ -110,14 +116,14 @@ export function useVerifyToken() {
     },
     enabled: !!AuthService.getToken(),
     retry: false,
-    staleTime: 30 * 1000,
+    staleTime: 30 * 1000, // Vérifier toutes les 30 secondes
   });
 }
 
 // Hook pour réinitialiser le mot de passe
 export function useResetPassword() {
   return useMutation<void, Error, ResetPasswordDTO>({
-    mutationFn: async (data) => {
+    mutationFn: async (data: ResetPasswordDTO) => {
       await AuthService.resetPassword(data);
     },
   });
@@ -167,7 +173,7 @@ export function useInitializeAuth() {
   const queryClient = useQueryClient();
   
   React.useEffect(() => {
-    console.log('🔄 Initializing auth...');
+    console.log('🔄 useInitializeAuth: Initializing auth...');
     
     // Configurer l'intercepteur axios avec le token
     AuthService.initializeAuth();
@@ -176,9 +182,9 @@ export function useInitializeAuth() {
     const user = AuthService.getUser();
     if (user) {
       queryClient.setQueryData(['auth'], user);
-      console.log('✅ Auth initialized with user:', user.username);
+      console.log('✅ useInitializeAuth: Auth initialized with user:', user.username);
     } else {
-      console.log('ℹ️ No user found in localStorage');
+      console.log('ℹ️ useInitializeAuth: No user found in localStorage');
     }
   }, [queryClient]);
 }
