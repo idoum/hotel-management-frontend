@@ -1,10 +1,10 @@
+// src/providers/AuthProvider.tsx - VERSION CORRIGÉE
 'use client';
 
 import React, { createContext, useContext, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AuthService } from '@/features/staff-security/services/auth.service';
 import { AuthUser } from '@/features/staff-security/types/staff-security.types';
-import { useAuth } from '@/features/staff-security/hooks/useAuth';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -23,45 +23,50 @@ interface Props {
 }
 
 export function AuthProvider({ children }: Props) {
-  const { data: user, isLoading } = useAuth();
   const queryClient = useQueryClient();
+  
+  // ✅ État local au lieu d'utiliser useAuth()
+  const [user, setUser] = React.useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  // Initialiser l'auth au démarrage - SANS dépendances pour éviter les boucles
+  // Initialiser l'auth au démarrage
   useEffect(() => {
     console.log('🔄 AuthProvider: Initializing...');
     
     try {
-      // Configurer l'intercepteur axios avec le token
       AuthService.initializeAuth();
       
-      // Récupérer l'utilisateur depuis localStorage
       const storedUser = AuthService.getUser();
       if (storedUser) {
+        setUser(storedUser);
         queryClient.setQueryData(['auth'], storedUser);
         console.log('✅ AuthProvider: User restored from storage:', storedUser.username);
-      } else {
-        console.log('ℹ️ AuthProvider: No user found in localStorage');
       }
     } catch (error) {
       console.error('❌ AuthProvider: Error during initialization:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, []); // ✅ Pas de dépendances pour éviter les re-renders infinis
+  }, [queryClient]);
 
   const contextValue: AuthContextType = {
-    user: user || null,
+    user,
     isAuthenticated: user?.isAuthenticated ?? false,
     isLoading,
     
     login: async (credentials) => {
       const result = await AuthService.login(credentials);
-      queryClient.setQueryData(['auth'], {
+      const newUser = {
         ...result.user,
         isAuthenticated: true
-      });
+      };
+      setUser(newUser);
+      queryClient.setQueryData(['auth'], newUser);
     },
     
     logout: async () => {
       await AuthService.logout();
+      setUser(null);
       queryClient.clear();
       queryClient.setQueryData(['auth'], null);
     },
@@ -82,7 +87,6 @@ export function AuthProvider({ children }: Props) {
   );
 }
 
-// Hook pour utiliser le context
 export function useAuthContext() {
   const context = useContext(AuthContext);
   if (context === undefined) {

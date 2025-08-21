@@ -4,7 +4,6 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from '@/providers/AuthProvider';
-import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
 interface Props {
   children: React.ReactNode;
@@ -14,9 +13,8 @@ export default function Providers({ children }: Props) {
   const [queryClient] = React.useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // 1 minute
+        staleTime: 60 * 1000,
         retry: (failureCount, error: any) => {
-          // Ne pas retry sur les erreurs 401, 403, 404
           if (error?.status && [401, 403, 404].includes(error.status)) {
             return false;
           }
@@ -28,6 +26,18 @@ export default function Providers({ children }: Props) {
       },
     },
   }));
+
+  // ✅ Importer Bootstrap JS seulement côté client
+  React.useEffect(() => {
+    // Importation dynamique de Bootstrap JS
+    import('bootstrap/dist/js/bootstrap.bundle.min.js')
+      .then(() => {
+        console.log('✅ Bootstrap JS loaded');
+      })
+      .catch((error) => {
+        console.error('❌ Bootstrap JS loading error:', error);
+      });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
